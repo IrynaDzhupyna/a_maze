@@ -1,6 +1,8 @@
 import random
 import sys
 from typing import List, Dict, Tuple
+from get_output_file import write_output_file
+from collections import deque
 
 
 class Cell:
@@ -15,19 +17,40 @@ class Cell:
             "W": True
         }
 
+    # From subject:    
+    #     Bit 0(LSB) = North
+    #     Bit 1 = East
+    #     Bit 2 = South
+    #     Bit 3 = West
+    #
+    # So ?:
+
     def cell_to_hex(self):
         cell_hex = 0
         if self.walls["N"] == True:
-            cell_hex += 2**3
-        if self.walls["E"] == True:
-            cell_hex += 2**2
-        if self.walls["S"] == True:
-            cell_hex += 2**1
-        if self.walls["W"] == True:
             cell_hex += 2**0
+        if self.walls["E"] == True:
+            cell_hex += 2**1
+        if self.walls["S"] == True:
+            cell_hex += 2**2
+        if self.walls["W"] == True:
+            cell_hex += 2**3
         cell_hex = format(cell_hex, "X")
-        # print(cell_hex)
         return cell_hex
+
+    # def cell_to_hex(self):
+    #     cell_hex = 0
+    #     if self.walls["N"] == True:
+    #         cell_hex += 2**3
+    #     if self.walls["E"] == True:
+    #         cell_hex += 2**2
+    #     if self.walls["S"] == True:
+    #         cell_hex += 2**1
+    #     if self.walls["W"] == True:
+    #         cell_hex += 2**0
+    #     cell_hex = format(cell_hex, "X")
+    #     # print(cell_hex)
+    #     return cell_hex
 
 
 class Maze:
@@ -95,7 +118,7 @@ class Maze:
 
         return neighbors
     
-    def get_all_neighbors(self, cell):
+    '''def get_all_neighbors(self, cell):
         neighbors = []
 
         directions = [
@@ -113,7 +136,7 @@ class Maze:
                 neighbor = self.grid[ny][nx]
                 neighbors.append((neighbor, direction))
 
-        return neighbors
+        return neighbors'''
 
     def generate(self):
         stack = []
@@ -300,6 +323,91 @@ def print_error(message):
     print(f"{message}", file=sys.stderr)
 
 
+'''def solve_maze(maze):
+    if maze.entry == maze.exit:
+        return [maze.entry]
+    
+    queue = deque([maze.entry])
+    visited = {maze.entry}
+    previous = {}
+
+    while queue:
+        current = queue.popleft()
+        if current == maze.exit:
+            break
+        
+        for neighbor in maze.get_neighbors(current):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                previous[neighbor] = current
+                queue.append(neighbor)
+    
+    if maze.exit not in previous:
+        return []  # No path found
+    
+    current = maze.exit
+    path = [maze.exit]
+    while current != maze.entry:
+        current = previous[current]
+        path.append(current)
+    path.reverse()
+    return path
+
+
+def convert_path_to_string(path):
+    path_string = ""
+
+    for i in range(len(path) - 1):
+        x1, y1 = path[i]
+        x2, y2 = path[i + 1]
+        if x2 == x1 and y2 == y1 - 1:
+            path_string += "N"
+        elif x2 == x1 + 1 and y2 == y1:
+            path_string += "E"
+        elif x2 == x1 and y2 == y1 + 1:
+            path_string += "S"
+        elif x2 == x1 - 1 and y2 == y1:
+            path_string += "W"
+    return path_string'''
+
+def solve(maze):
+    from collections import deque
+
+    start = maze.entry
+    end = maze.exit
+    queue = deque([start])
+    came_from = {start: None}
+
+    directions = [
+        (0, -1, "N"), (1, 0, "E"),
+        (0, 1, "S"), (-1, 0, "W")
+    ]
+
+    while queue:
+        current = queue.popleft()
+        if current == end:
+            break
+        for dx, dy, direction in directions:
+            nx = current.x + dx
+            ny = current.y + dy
+            if 0 <= nx < maze.width and 0 <= ny < maze.height:
+                neighbor = maze.grid[ny][nx]
+                if not current.walls[direction] and neighbor not in came_from:
+                    came_from[neighbor] = (current, direction)
+                    queue.append(neighbor)
+
+    # reconstruct path
+    path = []
+    current = end
+    while current != start:
+        current, direction = came_from[current]
+        path.append(direction)
+
+    path.reverse()
+    return "".join(path)
+
+
+
 def main():
     if len(sys.argv) != 2:
         return print_error("Not enough arguments")
@@ -311,9 +419,18 @@ def main():
     data_dict = fill_the_dict(content)
     print("=== Maze configuration ===\n")
     print(content)
-    maze = Maze(int(data_dict["WIDTH"]), int(data_dict["HEIGHT"]), data_dict)  # create a width x height grid with the class Maze
-    maze.generate()  # generate a unique path throught all the cells with DFS
-    display(maze)  # display the grid on the terminal
+    # sets the random num gen starting point from seed(config.txt), maze is reproducible
+    random.seed(int(data_dict["SEED"]))
+    # create a width x height grid with the class Maze
+    maze = Maze(int(data_dict["WIDTH"]), int(data_dict["HEIGHT"]), data_dict)
+    # generate a unique path throught all the cells with DFS
+    maze.generate()
+    # finds the shortest path from entry to exit with BFS
+    path = solve(maze)
+    #writes the hex maze && entry/exit coordinates to file
+    write_output_file(data_dict["OUTPUT_FILE"], maze, path)
+    # display the grid on the terminal
+    display(maze)
     display_hex(maze)
 
 
